@@ -1,8 +1,17 @@
 #!/bin/bash
 
 # Arch Linux Hyprland Auto-Installer
-# Запускать из под обычного пользователя (НЕ root!)
-# wget https://raw.githubusercontent.com/your-repo/arch-hyprland-install/main/install.sh && chmod +x install.sh && ./install.sh
+# Запускать из под обычного пользователя (НЕ root)!
+# Создайте этот файл: nano install.sh и вставьте содержимое
+
+# === ПРОВЕРКА НА HTML (защита от случайного скачивания веб-страниц) ===
+if grep -q "<!DOCTYPE html>\|<html>\|<head>\|<body>" "$0"; then
+    echo "❌ ОШИБКА: Это HTML-файл, а не bash-скрипт!"
+    echo "Вы скачали веб-страницу вместо скрипта."
+    echo "Используйте правильный URL raw.githubusercontent.com или скопируйте скрипт вручную."
+    exit 1
+fi
+# ======================================================================
 
 set -e  # Остановка при ошибке
 
@@ -11,7 +20,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Логирование
 LOG_FILE="$HOME/arch-hyprland-install.log"
@@ -48,13 +57,13 @@ backup_configs() {
     echo -e "${BLUE}📦 Создание резервных копий...${NC}"
     local BACKUP_DIR="$HOME/.config.backup.$(date +%Y%m%d_%H%M%S)"
     mkdir -p "$BACKUP_DIR"
-
+    
     for config in hypr waybar rofi kitty sddm; do
         if [[ -d "$HOME/.config/$config" ]]; then
             cp -r "$HOME/.config/$config" "$BACKUP_DIR/"
         fi
     done
-
+    
     echo -e "${GREEN}✅ Бэкапы созданы в: $BACKUP_DIR${NC}"
 }
 
@@ -103,7 +112,7 @@ sudo pacman -S --needed --noconfirm \
     vlc mpv imv viewnior gwenview \
     neofetch htop btop fastfetch \
     tlp thermald
-
+    
 # TLP для ноутбуков
 sudo systemctl enable tlp.service
 
@@ -245,11 +254,11 @@ cat > ~/.config/waybar/config << 'EOF'
     "position": "top",
     "height": 30,
     "spacing": 4,
-
+    
     "modules-left": ["hyprland/workspaces", "hyprland/window"],
     "modules-center": ["clock"],
     "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "tray"],
-
+    
     "hyprland/workspaces": {
         "format": "{icon}",
         "format-icons": {
@@ -261,12 +270,12 @@ cat > ~/.config/waybar/config << 'EOF'
             "default": ""
         }
     },
-
+    
     "clock": {
         "format": "{:%a %d.%m | %H:%M}",
         "tooltip-format": "{:%Y-%m-%d | %H:%M:%S}"
     },
-
+    
     "pulseaudio": {
         "format": "{icon} {volume}%",
         "format-muted": "",
@@ -275,17 +284,17 @@ cat > ~/.config/waybar/config << 'EOF'
             "default": ["", "", ""]
         }
     },
-
+    
     "network": {
         "format-wifi": "",
         "format-ethernet": "",
         "format-disconnected": ""
     },
-
+    
     "cpu": {
         "format": " {usage}%"
     },
-
+    
     "memory": {
         "format": " {}%"
     }
@@ -348,88 +357,4 @@ color0 #45475a
 color1 #f38ba8
 color2 #a6e3a1
 color3 #f9e2af
-color4 #89b4fa
-color5 #f5c2e7
-color6 #94e2d5
-color7 #bac2de
-color8 #585b70
-color9 #f38ba8
-color10 #a6e3a1
-color11 #f9e2af
-color12 #89b4fa
-color13 #f5c2e7
-color14 #94e2d5
-color15 #a6adc8
-
-cursor #f5e0dc
-cursor_shape beam
-
-enable_audio_bell no
-EOF
-
-# Создание utilities скрипта
-echo -e "${BLUE}📝 Создание утилит...${NC}"
-cat > ~/Scripts/screenshot.sh << 'EOF'
-#!/bin/bash
-# Скрипт для скриншотов
-grim -g "$(slurp)" - | wl-copy
-notify-send "Screenshot captured" "Скриншот сохранен в буфер обмена"
-EOF
-
-chmod +x ~/Scripts/screenshot.sh
-
-# Настройка SDDM
-echo -e "${BLUE}🎨 Настройка SDDM...${NC}"
-sudo mkdir -p /etc/sddm.conf.d
-sudo bash -c 'cat > /etc/sddm.conf.d/default.conf << EOF
-[Autologin]
-User=yourusername
-Session=hyprland
-
-[Theme]
-Current=sugar-candy
-
-[General]
-Numlock=on
-
-[X11]
-EnableHiDPI=true
-
-[Wayland]
-EnableHiDPI=true
-EOF'
-
-# Включение SDDM
-if install_with_confirm "SDDM как менеджер входа"; then
-    sudo systemctl enable sddm.service
-fi
-
-# Настройка Papirus темы
-papirus-folders -C violet --theme Papirus-Dark
-
-# Настройка Git
-echo -e "${BLUE}🐙 Настройка Git...${NC}"
-git config --global init.defaultBranch main
-git config --global pull.rebase false
-
-# Создание .zshrc улучшений (если используется zsh)
-if [[ "$SHELL" == *"zsh"* ]]; then
-    echo 'neofetch' >> ~/.zshrc
-fi
-
-# Финальные сообщения
-echo -e "${GREEN}✅ Установка почти завершена!${NC}"
-echo -e "${YELLOW}⚠️  ВАЖНЫЕ ДЕЙСТВИЯ:${NC}"
-echo "1. Перезагрузитесь: sudo reboot"
-echo "2. После перезагрузки выберите Hyprland в SDDM"
-echo "3. Пароли для live-сессии (если используете eggs):"
-echo "   - Пользователь: live"
-echo "   - Пароль: evolution"
-echo "4. Для создания ISO выполните: sudo eggs produce --basename=MyArchHyprland"
-echo "5. Выключите Secure Boot в BIOS перед загрузкой с флешки"
-
-# Удаление скрипта
-echo -e "${RED}🗑️  Удаление install.sh...${NC}"
-rm -- "$0"
-
-echo -e "${GREEN}🎉 Готово! Перезагрузитесь для применения изменений.${NC}"
+color4
